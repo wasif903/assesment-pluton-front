@@ -1,14 +1,51 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useLogin } from "../api";
+import FormFieldError from "../components/FormFieldError";
 
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string | string[] }>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const mutation = useLogin();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (mutation.isError) {
+      const error = mutation.error as any;
+      const apiError = error?.response?.data;
+      setFieldErrors({});
+      setGeneralError(null);
+      if (apiError?.details && Array.isArray(apiError.details)) {
+        // Map details to fields if possible
+        const errors: { [key: string]: string[] } = {};
+        apiError.details.forEach((msg: string) => {
+          if (msg.toLowerCase().includes("identifier") || msg.toLowerCase().includes("email")) errors.identifier = [...(errors.identifier || []), msg];
+          else if (msg.toLowerCase().includes("password")) errors.password = [...(errors.password || []), msg];
+          else errors.general = [...(errors.general || []), msg];
+        });
+        setFieldErrors(errors);
+        if (errors.general) setGeneralError(errors.general.join(" "));
+      } else if (apiError?.message) {
+        setGeneralError(apiError.message);
+      } else {
+        setGeneralError("Login failed. Try again.");
+      }
+    }
+  }, [mutation.isError, mutation.error]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
+    setGeneralError(null);
     mutation.mutate({ identifier, password });
   };
 
@@ -26,6 +63,7 @@ const Login: React.FC = () => {
               onChange={(e) => setIdentifier(e.target.value)}
               required
             />
+            <FormFieldError error={fieldErrors.identifier} />
           </div>
           <div>
             <label className="block text-gray-700 mb-1">Password</label>
@@ -36,6 +74,7 @@ const Login: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <FormFieldError error={fieldErrors.password} />
           </div>
           <button
             type="submit"
@@ -44,6 +83,7 @@ const Login: React.FC = () => {
           >
             {mutation.isPending ? "Logging in..." : "Login"}
           </button>
+          {generalError && <FormFieldError error={generalError} />}
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">
           Don't have an account?{' '}

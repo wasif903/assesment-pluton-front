@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -27,7 +28,7 @@ export const useRegister = () => {
   const navigate = useNavigate();
   return useMutation({
     mutationFn: async ({ username, email, password }: RegisterPayload) => {
-      const response = await axios.post(`${baseUrl}/api/register`, {
+      const response = await axios.post(`${baseUrl}/api/user/register-user`, {
         username,
         email,
         password,
@@ -35,14 +36,19 @@ export const useRegister = () => {
       return response.data;
     },
     onSuccess: (result: AuthResponse) => {
-      alert("Registered successfully!");
+      toast.success("Registered successfully!");
       if (result.accessToken) Cookies.set("accessToken", result.accessToken);
       if (result.refreshToken) localStorage.setItem("refreshToken", result.refreshToken);
-      navigate("/notes");
+      if (result.user) localStorage.setItem("user", JSON.stringify(result.user));
+      
+      // Dispatch custom event for login (after registration)
+      window.dispatchEvent(new Event('userLogin'));
+      
+      navigate("/");
     },
     onError: (error: any) => {
       console.error("Registration failed:", error);
-      alert(error?.response?.data?.message || "Registration failed. Try again.");
+      toast.error(error?.response?.data?.message || "Registration failed. Try again.");
     },
   });
 };
@@ -61,11 +67,15 @@ export const useLogin = () => {
       if (result.accessToken) Cookies.set("accessToken", result.accessToken);
       if (result.refreshToken) localStorage.setItem("refreshToken", result.refreshToken);
       if (result.user) localStorage.setItem("user", JSON.stringify(result.user));
-      navigate("/notes");
+      
+      // Dispatch custom event for login
+      window.dispatchEvent(new Event('userLogin'));
+      
+      navigate("/");
     },
     onError: (error: any) => {
       console.error("Login failed:", error);
-      alert(error?.response?.data?.message || "Login failed. Try again.");
+      toast.error(error?.response?.data?.message || "Login failed. Try again.");
     },
   });
 };
@@ -91,10 +101,18 @@ export const useLogout = () => {
     onSuccess: () => {
       Cookies.remove("accessToken");
       localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      
+      // Dispatch custom event for logout
+      window.dispatchEvent(new Event('userLogout'));
+      
       navigate("/login");
     },
     onError: (error: any) => {
       console.error("Logout failed:", error);
     },
   });
-}; 
+};
+
+const user = JSON.parse(localStorage.getItem("user") || "null");
+if (user?.role === "Admin") { /* ... */ } 
