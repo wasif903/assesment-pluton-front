@@ -114,5 +114,54 @@ export const useLogout = () => {
   });
 };
 
+/**
+ * Refresh the access token using the refresh token stored in localStorage.
+ * Calls /api/refresh and updates tokens in storage if successful.
+ * Returns the new tokens or throws an error.
+ */
+export const refreshAccessToken = async (): Promise<AuthResponse> => {
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) {
+    throw new Error("No refresh token available");
+  }
+  try {
+    const response = await axios.post(`${baseUrl}/api/refresh`, { token: refreshToken });
+    const { accessToken, refreshToken: newRefreshToken, user } = response.data;
+    if (accessToken) Cookies.set("accessToken", accessToken);
+    if (newRefreshToken) localStorage.setItem("refreshToken", newRefreshToken);
+    if (user) localStorage.setItem("user", JSON.stringify(user));
+    return response.data;
+  } catch (error: any) {
+    // Optionally clear tokens if refresh fails
+    Cookies.remove("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    throw error;
+  }
+};
+
+/**
+ * Helper to retry an API call after refreshing the access token if a 401 error occurs.
+ * @param apiCallFn - A function that returns a Promise (your API call)
+ * @returns The result of the API call, possibly after refreshing the token
+ */
+export async function withTokenRefresh<T>(apiCallFn: () => Promise<T>): Promise<T> {
+  try {
+    return await apiCallFn();
+  } catch (error: any) {
+    // Check for 401 Unauthorized
+    if (error?.response?.status === 401) {
+      try {
+        await refreshAccessToken();
+        // Retry the API call once after refreshing
+        return await apiCallFn();
+      } catch (refreshError) {
+        throw refreshError;
+      }
+    }
+    throw error;
+  }
+}
+
 const user = JSON.parse(localStorage.getItem("user") || "null");
 if (user?.role === "Admin") { /* ... */ } 
