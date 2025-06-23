@@ -10,6 +10,7 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<number | null>(null);
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
 
   // Get values from URL params
   const search = searchParams.get("search") || "";
@@ -49,6 +50,7 @@ const Dashboard: React.FC = () => {
       setError(err?.response?.data?.message || "Failed to load blogs.");
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   }, []);
 
@@ -67,6 +69,8 @@ const Dashboard: React.FC = () => {
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
+
+    setSearching(true);
 
     // Set new timeout for 2 seconds
     const timeout = setTimeout(() => {
@@ -228,7 +232,7 @@ const Dashboard: React.FC = () => {
                 onChange={handleSearchChange}
                 className="w-64 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
-              {search && (
+              {searching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 </div>

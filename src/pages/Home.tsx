@@ -16,6 +16,7 @@ const Home: React.FC = () => {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const isLoggedIn = !!user;
   const isAdmin = Array.isArray(user?.role) ? user.role.includes("Admin") : user?.role === "Admin";
+  const [searching, setSearching] = useState(false);
 
   const fetchBlogs = useCallback(async (searchTerm?: string, page: number = 1) => {
     setLoading(true);
@@ -51,6 +52,7 @@ const Home: React.FC = () => {
       setError(err?.response?.data?.message || "Failed to load blogs.");
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   }, [pageSize]);
 
@@ -67,6 +69,8 @@ const Home: React.FC = () => {
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
+
+    setSearching(true); // Start search spinner immediately
 
     // Set new timeout for 2 seconds
     const timeout = setTimeout(() => {
@@ -150,7 +154,7 @@ const Home: React.FC = () => {
             onChange={handleSearchChange}
             className="w-full max-w-md px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          {search && (
+          {searching && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
             </div>
